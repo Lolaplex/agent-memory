@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agents-memory": {
+      "command": "python",
+      "args": ["-m", "agents_memory.mcp_server"]
+    }
+  }
+}
