@@ -7,6 +7,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .store import (
     add_memory as store_add,
+    auto_distill as store_auto_distill,
     delete_memory as store_delete,
     ensure_memory_layout,
     get_project_memories as store_get_project,
@@ -15,9 +16,12 @@ from .store import (
     inventory_report,
     parse_projects,
     promote_bullet as store_promote,
+    read_memory_file as store_read_file,
     register_project as store_register,
     search_memory as store_search,
+    staging_status_summary,
     sync_injection,
+    write_memory_file as store_write_file,
 )
 
 ensure_memory_layout()
@@ -25,17 +29,34 @@ ensure_memory_layout()
 mcp = FastMCP("agents-memory")
 
 
+def _with_staging_nag(output: str) -> str:
+    try:
+        summary = staging_status_summary()
+        nag = summary.get("nag")
+        if nag:
+            return f"{output}\n\n[NOTICE: {nag}]"
+    except Exception:
+        pass
+    return output
+
+
 @mcp.tool()
 def search_memory(query: str, project: str = "") -> str:
-    """Search typed markdown under ~/.agents/memory and registered repos. Does not search product chat/jsonl graves — use chats-index.md for body paths."""
+    """Search typed markdown under ~/.agents/memory and registered repos.
+    
+    CALL PROACTIVELY before guessing project architecture, past decisions, user preferences, or repository conventions.
+    Does not search product chat/jsonl graves — use chats-index.md for body paths.
+    """
     try:
         hits = store_search(query, project=project)
         if not hits:
-            return f"No local memories for '{query}'" + (f" in {project}" if project else "")
+            return _with_staging_nag(
+                f"No local memories for '{query}'" + (f" in {project}" if project else "")
+            )
         lines = [f"Found {len(hits)} hits:"]
         for h in hits:
             lines.append(f"- [{h['id']}] {h['text']}")
-        return "\n".join(lines)
+        return _with_staging_nag("\n".join(lines))
     except Exception as e:
         return f"Error searching local memory: {e}"
 
@@ -48,7 +69,11 @@ def add_memory(
     project: str = "",
     collection: str = "",
 ) -> str:
-    """File a durable fact in the right folder.
+    """File a durable fact in the right folder. Auto-syncs to all IDEs/CLIs.
+
+    PROACTIVE USAGE: ALWAYS call this tool immediately when the user establishes durable preferences,
+    architecture decisions (ADRs), tool/package choices, styling conventions, or corrections.
+    Do NOT wait for explicit user commands like 'save this'.
 
     kind=concept|entity|workflow|project|note|scratch|research|plans|tasks|roadmap|waves|decision|proposed|implemented|rejected|staging
     plus name= (file stem). collection= for notes/ or a note class
@@ -65,9 +90,38 @@ def add_memory(
             project=project,
             collection=collection,
         )
-        return f"Saved to {loc}"
+        return _with_staging_nag(f"Saved to {loc}")
     except Exception as e:
         return f"Error saving memory: {e}"
+
+
+@mcp.tool()
+def read_memory_file(file_id: str) -> str:
+    """Read the raw markdown or json content of any memory file or rule by file_id (e.g. 'user/USER.md', 'rules/user-rules.mdc', 'user/notes/preferences/memory-meta.md', 'project/customs/README.md')."""
+    try:
+        return store_read_file(file_id)
+    except Exception as e:
+        return f"Error reading memory file '{file_id}': {e}"
+
+
+@mcp.tool()
+def write_memory_file(file_id: str, content: str) -> str:
+    """Write/overwrite any memory file or rule (e.g. 'user/USER.md', 'rules/user-rules.mdc', 'user/notes/preferences/note.md') and auto-sync immediately across all IDEs and CLIs."""
+    try:
+        loc = store_write_file(file_id, content, auto_sync=True)
+        return _with_staging_nag(f"Saved and synced {loc}")
+    except Exception as e:
+        return f"Error writing memory file '{file_id}': {e}"
+
+
+@mcp.tool()
+def auto_distill(limit: int = 50, discard_noise: bool = True) -> str:
+    """Automatically classify and distill staging bullets (discard obvious noise/chatter, promote standard facts/preferences) and auto-sync immediately."""
+    try:
+        res = store_auto_distill(limit=limit, discard_noise=discard_noise, auto_sync=True)
+        return json.dumps(res, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return f"Error in auto_distill: {e}"
 
 
 @mcp.tool()
@@ -79,7 +133,7 @@ def promote_bullet(
     collection: str = "",
     source_path: str = "",
 ) -> str:
-    """Promote a staging bullet into a typed memory file (kind+name) and delete it from staging.
+    """Promote a staging bullet into a typed memory file (kind+name) and delete it from staging. Auto-syncs to all IDEs/CLIs.
 
     Example: promote_bullet("prefer dark mode", kind="note", name="ui", collection="preferences")
     """
@@ -93,7 +147,7 @@ def promote_bullet(
             source_path=source_path,
         )
         status = "and removed from staging" if removed else "(staging bullet not found to delete)"
-        return f"Promoted to {loc} {status}"
+        return _with_staging_nag(f"Promoted to {loc} {status}")
     except Exception as e:
         return f"Error promoting bullet: {e}"
 
@@ -117,7 +171,7 @@ def get_staging_inbox(project: str = "", limit: int = 20) -> str:
 
 @mcp.tool()
 def distill_batch(items_json: str) -> str:
-    """Batch-process staging bullets into memory or discard them.
+    """Batch-process staging bullets into memory or discard them. Auto-syncs to all IDEs/CLIs.
 
     Pass a JSON array of objects:
     [{"bullet": "fact text", "kind": "note", "name": "stem", "project": "slug"},
@@ -137,9 +191,12 @@ def distill_batch(items_json: str) -> str:
 
 @mcp.tool()
 def get_project_memories(project: str) -> str:
-    """Return the project link plus in-tree `.agents/memory` markdown."""
+    """Return the project link plus in-tree `.agents/memory` markdown.
+    
+    CALL PROACTIVELY when starting work in a repository to load its architecture, facts, ADRs, and tasks.
+    """
     try:
-        return store_get_project(project)
+        return _with_staging_nag(store_get_project(project))
     except Exception as e:
         return f"Error fetching project memories: {e}"
 
@@ -301,6 +358,14 @@ def ingest_status() -> str:
         )
     except Exception as e:
         return f"Error reading ingest status: {e}"
+
+
+# Auto-trace all tool calls to ~/.agents/traces/ if agents-traces is installed
+try:
+    from agents_traces import auto_trace_mcp
+    auto_trace_mcp(mcp)
+except Exception:
+    pass
 
 
 def main() -> int:

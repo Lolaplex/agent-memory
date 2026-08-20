@@ -28,14 +28,23 @@ Commands:
 
 def main(argv: list[str] | None = None) -> int:
     args = list(argv if argv is not None else sys.argv[1:])
-    if not args or args[0] in ("-h", "--help"):
+    if not args or args[0] in ("-h", "--help", "help"):
         print(USAGE, end="")
         return 0 if args else 2
+    if args[0] in ("-v", "--version", "version"):
+        from . import __version__
+
+        print(f"agents-memory {__version__}")
+        return 0
     if args[0] in ("--help-json", "help-json"):
         from .cli_help import main as help_main
 
         return help_main(["--help-json"])
     cmd, rest = args[0], args[1:]
+    if cmd == "init":
+        from .sync import main as run
+
+        return run(["--init", *rest])
     if cmd == "sync":
         from .sync import main as run
 
@@ -49,7 +58,15 @@ def main(argv: list[str] | None = None) -> int:
 
         return run(rest)
     if cmd == "distill":
-        from .store import get_staging_inbox
+        from .store import auto_distill, get_staging_inbox
+
+        if "--auto" in rest or "-a" in rest:
+            res = auto_distill(limit=50, discard_noise=True, auto_sync=True)
+            print(f"Auto-distill result: {res['promoted']} promoted, {res['discarded']} discarded, {res['remaining_staging_count']} remaining.")
+            if res.get("errors"):
+                for err in res["errors"]:
+                    print(f"  Error: {err}")
+            return 0
 
         inbox = get_staging_inbox(limit=15)
         if inbox["total"] == 0:
@@ -66,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
                 title = item.get("title") or ""
                 prefix = f"[{title}] " if title else ""
                 print(f"- {prefix}{item.get('text') or item.get('bullet')}")
-        print("\nTo distill, tell your Agent: 'run memory-distill' or use the memory-distill skill.")
+        print("\nTo distill, tell your Agent: 'run memory-distill' or use the memory-distill skill (or: python -m agents_memory distill --auto).")
         return 0
     if cmd in ("ingest-chats", "ingest_chats"):
         from .ingest_chats import main as run
@@ -79,7 +96,14 @@ def main(argv: list[str] | None = None) -> int:
     if cmd in ("extract-openai", "extract_openai"):
         from .extract_openai import main as run
 
-        return run(rest)
+    if cmd in ("reset", "clean"):
+        if "--yes" not in rest and "-y" not in rest:
+            print("WARNING: This will clear local memory caches and temporary state. Pass --yes to confirm.")
+            return 1
+        from .store import clear_memory_cache
+        clear_memory_cache()
+        print("Memory state and cache reset successfully.")
+        return 0
     if cmd in ("mcp", "mcp-server", "mcp_server"):
         from .mcp_server import main as run
 

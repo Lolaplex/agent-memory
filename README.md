@@ -1,7 +1,7 @@
 # agents-memory
 
 <p align="left">
-  <a href="https://github.com/Lolaplex/agents-memory/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue.svg?style=flat-square" alt="Version 1.0.0"></a>
+  <a href="https://github.com/Lolaplex/agents-memory/releases"><img src="https://img.shields.io/badge/version-1.0.1-blue.svg?style=flat-square" alt="Version 1.0.1"></a>
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-Standard-orange.svg?style=flat-square" alt="MCP"></a>
   <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+"></a>
   <a href="https://pypi.org/project/agents-memory/"><img src="https://img.shields.io/pypi/v/agents-memory.svg?style=flat-square" alt="PyPI"></a>
@@ -16,12 +16,14 @@ One persistent identity, shared across **Claude Code**, **Cursor**, **Antigravit
 ## Why `.agents/memory`?
 
 The name **`agents-memory`** comes directly from its universal storage standard: **`.agents/memory`**.
+
 - **Global:** `~/.agents/memory/` stores your persistent identity, stack defaults, durable concepts, and project index.
 - **Repository:** `<repo>/.agents/memory/` stores repo-specific facts, architecture ADRs, and staging inboxes.
 
 While AI vendors fragment their configuration across proprietary stores, `.agents/` provides a single, open, vendor-neutral filesystem hub for all agent configurations and shared intelligence.
 
 `agents-memory` delivers this with a **pure Markdown-first architecture**:
+
 - **Local & Offline:** Your identity and repo memory live in plain files (`~/.agents/memory/` and `<repo>/.agents/memory/`).
 - **Human-Readable & Git-Friendly:** Edit with any text editor, diff with git, commit when you want.
 - **Universal MCP Server:** Exposes memory tools (`search_memory`, `add_memory`, `get_project_memories`, `distill_batch`) to all modern agents.
@@ -75,12 +77,14 @@ Scaffolds `~/.agents/memory/`, autowires MCP configurations into your installed 
 > Simply tell your coding agent: **"Install and set up agents-memory for me."**  
 > The agent installs the package, asks your stack preferences once, fills your `USER.md` profile, and registers your repositories autonomously.
 
+*Source checkouts can also be installed and managed using [vand](https://github.com/Lolaplex/vand).*
+
 ---
 
 ## CLI Reference
 
 | Command | Purpose |
-|---------|---------|
+| --------- | --------- |
 | `agents-memory sync` | Updates canonical `AGENTS.md`, host rules, and MCP registrations |
 | `agents-memory sync --init` | First-time scaffolding, example creation, and host discovery |
 | `agents-memory inventory` | Discovers unregistered local repositories across workspace roots |
